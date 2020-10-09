@@ -399,15 +399,15 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 void USER_UART_IDLECallback(UART_HandleTypeDef *huart)
 {
 	uint8_t rx_data_length;
-	if(RESET == __HAL_UART_GET_FLAG(& hlpuart1, UART_FLAG_IDLE))
+	if(RESET == __HAL_UART_GET_FLAG(&hlpuart1, UART_FLAG_IDLE))
 	{	 // 判断是否是空闲中断
 		return;
 	}
 
 	// 清除空闲中断标志（否则会一直不断进入中断）
-	__HAL_UART_CLEAR_IDLEFLAG(& hlpuart1);
+	__HAL_UART_CLEAR_IDLEFLAG(&hlpuart1);
 	// 停止本次DMA传输
-    HAL_UART_DMAStop(& hlpuart1);
+    HAL_UART_DMAStop(&hlpuart1);
 
     // 计算接收到的数据长度
     rx_data_length  = BUFFER_SIZE - __HAL_DMA_GET_COUNTER(&hdma_lpuart1_rx);
@@ -419,7 +419,7 @@ void USER_UART_IDLECallback(UART_HandleTypeDef *huart)
 	//xSemaphoreGiveFromISR(ATRXCplSemaphore,&xHightPriorityTaskWoken);
     //退出中断后执行最高优先级任务
 	//portYIELD_FROM_ISR(xHightPriorityTaskWoken);
-
+    HAL_UART_Transmit(&hlpuart1,(uint8_t *)receive_buff, strlen(receive_buff),200);
 	// 重启开始DMA传输 每次255字节数据
     HAL_UART_Receive_DMA(&hlpuart1, (uint8_t*)receive_buff, BUFFER_SIZE);
 
