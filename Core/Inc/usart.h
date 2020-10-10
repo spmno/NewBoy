@@ -45,7 +45,10 @@ void MX_USART1_UART_Init(void);
 void MX_USART3_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-void USER_UART_IDLECallback(UART_HandleTypeDef *huart);
+#define BUFFER_SIZE 255
+extern uint8_t receive_buff[BUFFER_SIZE];
+extern uint8_t at_buffer[BUFFER_SIZE];
+void USER_UART_IDLECallback(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_uart, uint8_t *buffer);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus

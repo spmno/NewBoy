@@ -21,8 +21,8 @@
 #include "usart.h"
 
 /* USER CODE BEGIN 0 */
-#define BUFFER_SIZE 255
 uint8_t receive_buff[BUFFER_SIZE];
+uint8_t at_buffer[BUFFER_SIZE];
 /* USER CODE END 0 */
 
 UART_HandleTypeDef hlpuart1;
@@ -30,6 +30,7 @@ UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_lpuart1_rx;
+DMA_HandleTypeDef hdma_usart1_rx;
 
 /* LPUART1 init function */
 
@@ -167,7 +168,6 @@ void MX_USART3_UART_Init(void)
 
 void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
 {
-
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   if(uartHandle->Instance==LPUART1)
   {
@@ -264,18 +264,45 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
     PC4     ------> USART1_TX
     PC5     ------> USART1_RX
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
+    GPIO_InitStruct.Pin = GPIO_PIN_4;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
     GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
     HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+    GPIO_InitStruct.Pin = GPIO_PIN_5;
+    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    GPIO_InitStruct.Alternate = GPIO_AF7_USART1;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    /* USART1 DMA Init */
+    /* USART1_RX Init */
+    hdma_usart1_rx.Instance = DMA1_Channel2;
+    hdma_usart1_rx.Init.Request = DMA_REQUEST_USART1_RX;
+    hdma_usart1_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
+    hdma_usart1_rx.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_usart1_rx.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_usart1_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
+    hdma_usart1_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_usart1_rx.Init.Mode = DMA_NORMAL;
+    hdma_usart1_rx.Init.Priority = DMA_PRIORITY_LOW;
+    if (HAL_DMA_Init(&hdma_usart1_rx) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_LINKDMA(uartHandle,hdmarx,hdma_usart1_rx);
+
     /* USART1 interrupt Init */
     HAL_NVIC_SetPriority(USART1_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(USART1_IRQn);
   /* USER CODE BEGIN USART1_MspInit 1 */
-
+    __HAL_UART_ENABLE_IT(&huart1, UART_IT_IDLE);
+    HAL_UART_Receive_DMA(&huart1, at_buffer, BUFFER_SIZE);
+    __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_TC);				//关闭DMA中断
   /* USER CODE END USART1_MspInit 1 */
   }
   else if(uartHandle->Instance==USART3)
@@ -367,6 +394,9 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
     */
     HAL_GPIO_DeInit(GPIOC, GPIO_PIN_4|GPIO_PIN_5);
 
+    /* USART1 DMA DeInit */
+    HAL_DMA_DeInit(uartHandle->hdmarx);
+
     /* USART1 interrupt Deinit */
     HAL_NVIC_DisableIRQ(USART1_IRQn);
   /* USER CODE BEGIN USART1_MspDeInit 1 */
@@ -396,32 +426,32 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
 }
 
 /* USER CODE BEGIN 1 */
-void USER_UART_IDLECallback(UART_HandleTypeDef *huart)
+void USER_UART_IDLECallback(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_uart, uint8_t *buffer)
 {
 	uint8_t rx_data_length;
-	if(RESET == __HAL_UART_GET_FLAG(&hlpuart1, UART_FLAG_IDLE))
+	if(RESET == __HAL_UART_GET_FLAG(huart, UART_FLAG_IDLE))
 	{	 // 判断是否是空闲中断
 		return;
 	}
 
 	// 清除空闲中断标志（否则会一直不断进入中断）
-	__HAL_UART_CLEAR_IDLEFLAG(&hlpuart1);
+	__HAL_UART_CLEAR_IDLEFLAG(huart);
 	// 停止本次DMA传输
-    HAL_UART_DMAStop(&hlpuart1);
+    HAL_UART_DMAStop(huart);
 
     // 计算接收到的数据长度
-    rx_data_length  = BUFFER_SIZE - __HAL_DMA_GET_COUNTER(&hdma_lpuart1_rx);
+    rx_data_length  = BUFFER_SIZE - __HAL_DMA_GET_COUNTER(hdma_uart);
 
-    receive_buff[rx_data_length]=0;
+    buffer[rx_data_length]=0;
 
 	//定义信号量，在接收完一帧数据后发布信号量
 	//BaseType_t xHightPriorityTaskWoken=pdFALSE;
 	//xSemaphoreGiveFromISR(ATRXCplSemaphore,&xHightPriorityTaskWoken);
     //退出中断后执行最高优先级任务
 	//portYIELD_FROM_ISR(xHightPriorityTaskWoken);
-    HAL_UART_Transmit(&hlpuart1,(uint8_t *)receive_buff, strlen(receive_buff),200);
+    HAL_UART_Transmit(huart,(uint8_t *)buffer, strlen(buffer),200);
 	// 重启开始DMA传输 每次255字节数据
-    HAL_UART_Receive_DMA(&hlpuart1, (uint8_t*)receive_buff, BUFFER_SIZE);
+    HAL_UART_Receive_DMA(huart, (uint8_t*)buffer, BUFFER_SIZE);
 
 }
 /* USER CODE END 1 */
