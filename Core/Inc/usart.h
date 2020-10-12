@@ -46,8 +46,10 @@ void MX_USART3_UART_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 #define BUFFER_SIZE 255
-extern uint8_t receive_buff[BUFFER_SIZE];
-extern uint8_t at_buffer[BUFFER_SIZE];
+extern uint8_t lpuart1_buffer[BUFFER_SIZE];
+extern uint8_t usart1_buffer[BUFFER_SIZE];
+extern uint8_t usart3_buffer[BUFFER_SIZE];
+extern uint8_t uart4_buffer[BUFFER_SIZE];
 void USER_UART_IDLECallback(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_uart, uint8_t *buffer);
 /* USER CODE END Prototypes */
 
