@@ -26,7 +26,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "usart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -112,10 +112,12 @@ void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
-  for(;;)
+  while (1)
   {
-    osDelay(1);
+	HAL_Delay(1000);
+	printf("haha\r\n");
   }
+
   /* USER CODE END StartDefaultTask */
 }
 

@@ -54,7 +54,7 @@
 void SystemClock_Config(void);
 void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN PFP */
-
+void netmodule_thread(void *argument);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -178,7 +178,9 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void netmodule_thread(void *argument)
+{
+}
 /* USER CODE END 4 */
 
 /**

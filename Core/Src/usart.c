@@ -514,11 +514,29 @@ void USER_UART_IDLECallback(UART_HandleTypeDef *huart, DMA_HandleTypeDef *hdma_u
 	//xSemaphoreGiveFromISR(ATRXCplSemaphore,&xHightPriorityTaskWoken);
     //退出中断后执行最高优先级任务
 	//portYIELD_FROM_ISR(xHightPriorityTaskWoken);
-    HAL_UART_Transmit(huart,(uint8_t *)buffer, strlen(buffer),200);
+    HAL_UART_Transmit(huart, buffer, strlen(buffer),200);
 	// 重启开始DMA传输 每次255字节数据
     HAL_UART_Receive_DMA(huart, (uint8_t*)buffer, BUFFER_SIZE);
 
 }
+
+
+//ʹ重定向printf
+
+#include "stdio.h"
+
+#ifdef __GNUC__
+
+#define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
+#else
+  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
+#endif
+PUTCHAR_PROTOTYPE
+{
+  HAL_UART_Transmit(&hlpuart1, (uint8_t*)&ch, 1, 10);
+  return ch;
+}
+
 /* USER CODE END 1 */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
